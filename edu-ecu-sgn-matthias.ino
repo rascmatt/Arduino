@@ -1,29 +1,13 @@
-/*
-  only works as long as engine is cranking. ALWAYS be prepared to stop injection in case engine responds:
-    designed for constant engine rpm, but is instable once injection affects engine rpm: too much injection during acceleration, not enough during deceleration
-  Detects gap in the periodic NE sensor signal, creates sets output signal to HIGH for preset time with preset delay after gap
-  micros() rollover every 70 minutes
-  BUG in test configuration: when the NE signal generating µC is resetted (not if this µC is resetted) and if the currently set
-    2*(delay after gap + out signal ON time) exceeds the time from gap to gap, the ON time and (in most cases, sometimes longer) the delay time
-    double. This occurs with approx. 0,5 probability. Issue can be solved by setting decreasing 2*2*(delay after gap + out signal ON time)
-    below the time from gap to gap.
-  do not use delay(): delay(32) -> error
-  poti: 10kOhm
-*/
 int sensorPin = A0;
 int sensorValue = 0;
 int poti_pin1 = A1;
 int poti_pin2 = A2;
+
 // must be long for calculation process
 long poti_value = 0;
 long value = 0;
 long value_add = 0;
 bool ausfall = false;
-
-//signal must be on LOW again before passing the threshold to the last pulse of a row, otherwise injection only every second time
-// may be an issue during rapid acceleration
-// why APPROX.: because threshold > 0, measured high period is < measured low period (or other due to NE sig. irregularities)
-//   -> there is not one t_2 -> multiples of t_2 is approx.
 
 const int outPin = 9;
 const int injconfPin = 8; // injection confirmation signal out
@@ -54,6 +38,9 @@ void setup() {
 
 void loop() {
   i=0;
+
+  //add new loop that detects a gap here...
+
   do {
     sensorValue = analogRead(sensorPin);
     ms = ms2 - ms1;
