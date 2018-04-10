@@ -25,6 +25,8 @@ const float faktor = 0.84; //to detect every gap, spill valve operating must be 
 unsigned long ms, ms1, ms2, ms3, ms4, ms_block; ///###### unsigned long - also do in former versions
 int i=0;// overflow does not matter
 
+bool firstBlock;
+
 void setup() {
   pinMode(outPin, OUTPUT);
   pinMode(injconfPin, OUTPUT);
@@ -34,15 +36,16 @@ void setup() {
   digitalWrite(injconfPin, HIGH);
   ms3=0;
   Serial.begin(9600);
+
+  firstBlock = true; //true if (firstBlock overall || loss of signal) => sample block time again
 }
 
 
-bool previousPhase; //set true if high && set false if low
-bool currentPhase
+bool previousPhase, currentPhase //set true if high && set false if low
 
-unsigned long prevT, currT, t1, t2
+unsigned long prevT, currT, t1, t2;
 
-bool c;
+bool c; //continue loop if true
 
 void loop() {
   prevT = 0;
@@ -52,7 +55,7 @@ void loop() {
 
   do {
 
-    //makes the loop continue the first 2 iterations
+    //makes the loop continue for the first 2 iterations
     c = prevT==0; //true if prevT==0 else false
 
     //update previous time & phase
@@ -78,22 +81,22 @@ void loop() {
     currT = t2-t1;
 
     //TODO: detect loss of signal
+    //if loss detected -> firstBlock=true
 
   }while( !currentPhase && (prevT*1.5 > currT) || c);
 
-  // nach Signalverlust wieder hinauf zur gap-detektierenden Schleife
-  if ( ms3==0 or ausfall){
-    ausfall = false;
-    ms3 = micros();
-  } else {
-    value = 0;
-    value_add = 0;
-    ms4 = micros();
-    ms_block = round((ms4 - ms3)*faktor);
-    ms3 = ms4;
+  value = 0;
+  value_add = 0;
+  ms4 = micros();
+  ms_block = round((ms4 - ms3)*faktor);
+  ms3 = ms4;
 
-     // do not run the following in the first runthrough (ms3=0) as there is no block length available yet
-    // do also not run if signal was lost (below threshold) for some time. In this case, it must not be run for a second time (block_again).
+  // do not run the following in the first runthrough (ms3=0) as there is no block length available yet
+  if(firstBlock){
+    firstBlock = false;
+  }else{
+    //TODO: rework the delay-loops into one call to millis() & one call to micros();
+
     poti_value = analogRead(poti_pin1);
     value = round(poti_value*ms_block*del_length/10230); //KEEP the divisor at the last position //*10µs <16000, so suitable for delayMicroseconds
     value_add = round(del_start*ms_block/10);
