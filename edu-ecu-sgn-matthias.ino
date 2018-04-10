@@ -36,46 +36,51 @@ void setup() {
   Serial.begin(9600);
 }
 
-void loop() {
-  i=0;
 
-  //add new loop that detects a gap here...
+bool previousPhase; //set true if high && set false if low
+bool currentPhase
+
+unsigned long prevT, currT, t1, t2
+
+bool c;
+
+void loop() {
+  prevT = 0;
+  currT = 0;
+  currentPhase = true;
+  c = false;
 
   do {
+
+    //makes the loop continue the first 2 iterations
+    c = prevT==0; //true if prevT==0 else false
+
+    //update previous time & phase
+    prevT = currT;
+    previousPhase = currentPhase;
+
+    //measur time of current phase
     sensorValue = analogRead(sensorPin);
-    ms = ms2 - ms1;
-    ms1 = micros();
-    if (sensorValue < threshold) {
-      while (sensorValue < threshold) {
+    t1 = micros();
+    if(sensorValue >= threshold){
+      while(sensorValue >= threshold){
         sensorValue = analogRead(sensorPin);
       }
-    } else {
-      while (sensorValue >= threshold) {
+      currentPhase = true;
+    }else{
+      while(sensorValue < threshold){
         sensorValue = analogRead(sensorPin);
       }
+      currentPhase = false;
     }
-    ms2 = micros();
-    // when output signal is set to low again, routine starts measuring right in the middle of an above/below threshold period
-    //   in the second runthrough (i=1), this would lead the loop to be termiated again prematurely. Do not let this happen.
-    // also do not terminate loop in the first ever runthrough (there is no ms yet)
-    if (i<=1){ // i=1 does not work for some reason...
-      ms = ms2-ms1;
-    }
-    i = i+1;
+    t2 = micros();
 
-    if (sensorValue > threshold){
-      /*Serial.println(ms2-ms1);
-      Serial.println(ms);*/
-    }
-    if ( (ms2 - ms1) > (2*gap_length * ms) ){
-      ausfall = true;
-      Serial.println("ausfall");
-    }
+    currT = t2-t1;
 
+    //TODO: detect loss of signal
 
-  // ms=last measured t/2, end loop if a gap in the periodic signal is detected.
-  // make sure sensorPin is still stable above threshold after the gap. analogRead takes approx. 200ms
-  } while ( (ms2 - ms1) < (gap_length * ms) or (ms2 - ms1) > (2*gap_length * ms) or (analogRead(sensorPin) < threshold));
+  }while( !currentPhase && (prevT*1.5 > currT) || c);
+
   // nach Signalverlust wieder hinauf zur gap-detektierenden Schleife
   if ( ms3==0 or ausfall){
     ausfall = false;
