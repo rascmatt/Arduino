@@ -39,6 +39,8 @@ void setup() {
   digitalWrite(outPin, LOW);
   digitalWrite(injconfPin, HIGH);
 
+  Serial.begin(57600);
+
   ms1=0;
 
   firstBlock = true; //true if (firstBlock overall || loss of signal) => sample block time again
@@ -72,16 +74,14 @@ void loop() {
 
     currT = t2-t1;
 
+    //TODO: error at some poti-positions
     //detect loss of signal
     if(!currentPhase){
       if(currT > prevT*gap_length*2){
+        Serial.println("ausfall");
         //loss of signal -> resample block-length
         firstBlock = true;
       }
-    }
-
-    if(i>20){
-      i=0;
     }
 }while(currentPhase || (!currentPhase && prevT*gap_length > currT) || i<=2);
 
