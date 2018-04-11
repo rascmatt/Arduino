@@ -7,7 +7,6 @@ int poti_pin2 = A2;
 long poti_value = 0;
 long value = 0;
 long value_add = 0;
-bool ausfall = false;
 
 const int outPin = 9;
 const int injconfPin = 8; // injection confirmation signal out
@@ -22,47 +21,40 @@ const float spv_cl_add = 0; // in multiples of block length. APPROX time the spi
 const float spv_cl_range = 0.48;//31-del_start-spv_cl_add; // poti range. in multiples of t_2
 const float faktor = 0.84; //to detect every gap, spill valve operating must be shorter than the gap to gap time shortened by another t_2 as a buffer
 
-unsigned long ms, ms1, ms2, ms3, ms4, ms_block; ///###### unsigned long - also do in former versions
-int i=0;// overflow does not matter
+unsigned long ms1, ms2, ms_block; ///###### unsigned long - also do in former versions
+
+/////////////////////////////////////
+
+bool previousPhase, currentPhase; //set true if high && set false if low
+
+unsigned long prevT, currT, t1, t2;
 
 bool firstBlock;
+
+unsigned int i;
 
 void setup() {
   pinMode(outPin, OUTPUT);
   pinMode(injconfPin, OUTPUT);
-  ms1 = 0;
-  ms2 = 0;
   digitalWrite(outPin, LOW);
   digitalWrite(injconfPin, HIGH);
-  ms3=0;
-  Serial.begin(9600);
+
+  ms1=0;
 
   firstBlock = true; //true if (firstBlock overall || loss of signal) => sample block time again
+  i=0; //continue after each of the first two iterations
 }
 
 
-bool previousPhase, currentPhase //set true if high && set false if low
-
-unsigned long prevT, currT, t1, t2;
-
-bool c; //continue loop if true
-
 void loop() {
-  prevT = 0;
-  currT = 0;
-  currentPhase = true;
-  c = false;
-
   do {
+    i=i+1;
 
-    //makes the loop continue for the first 2 iterations
-    c = prevT==0; //true if prevT==0 else false
-
-    //update previous time & phase
+    //update previous duration & phase
     prevT = currT;
     previousPhase = currentPhase;
 
-    //measur time of current phase
+    //measure duration of current phase
     sensorValue = analogRead(sensorPin);
     t1 = micros();
     if(sensorValue >= threshold){
@@ -80,16 +72,24 @@ void loop() {
 
     currT = t2-t1;
 
-    //TODO: detect loss of signal
-    //if loss detected -> firstBlock=true
+    //detect loss of signal
+    if(!currentPhase){
+      if(currT > prevT*gap_length*2){
+        //loss of signal -> resample block-length
+        firstBlock = true;
+      }
+    }
 
-  }while( !currentPhase && (prevT*1.5 > currT) || c);
+    if(i>20){
+      i=0;
+    }
+}while(currentPhase || (!currentPhase && prevT*gap_length > currT) || i<=2);
 
   value = 0;
   value_add = 0;
-  ms4 = micros();
-  ms_block = round((ms4 - ms3)*faktor);
-  ms3 = ms4;
+  ms2 = micros();
+  ms_block = round((ms2 - ms1)*faktor);
+  ms1 = ms2;
 
   // do not run the following in the first runthrough (ms3=0) as there is no block length available yet
   if(firstBlock){
